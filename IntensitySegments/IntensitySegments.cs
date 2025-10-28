@@ -23,41 +23,34 @@
                 throw new ArgumentException("From must be less than to.");
             }
 
-            // Process the 'to' point insertions first
+            if (amount == 0)
+            {
+                return; // No change needed
+            }
+
+            // Add the 'to' point if it doesn't exist
             if (!points.ContainsKey(to))
             {
-                points.Add(to, 0);
-                var toIndex = points.IndexOfKey(to);
-                if (toIndex > 0)
-                {
-                    points[to] = points.Values[toIndex - 1];
-                }
+                int valueAtToBefore = GetIntensityAtPosition(to);
+                points[to] = valueAtToBefore;
             }
 
-            // Process the 'from' point insertions
-            if (points.ContainsKey(from))
+            // Add or update the 'from' point
+            int valueAtFromBefore = GetIntensityAtPosition(from);
+            points[from] = valueAtFromBefore + amount;
+
+            // Use binary search to find the range of points between 'from' and 'to' efficiently
+            var keys = points.Keys.ToArray();
+            int fromIndex = BinarySearch(keys, from);
+            int toIndex = BinarySearch(keys, to);
+
+            // Update all points between from and to
+            for (int i = fromIndex + 1; i < toIndex; i++)
             {
-                points[from] += amount;
-            }
-            else
-            {
-                points.Add(from, amount);
-                var fromIndex = points.IndexOfKey(from);
-                if (fromIndex > 0)
-                {
-                    points[from] += points.Values[fromIndex - 1];
-                }
+                points[keys[i]] += amount;
             }
 
-            // Find all points between from and to and update their intensity
-            var fromIndex2 = points.IndexOfKey(from);
-            var toIndex2 = points.IndexOfKey(to);
-            for (int i = fromIndex2 + 1; i < toIndex2; i++)
-            {
-                points[points.Keys[i]] += amount;
-            }
-
-            MergeSegments();
+            MergeSegmentsInRange(from, to);
         }
 
         public void Set(int from, int to, int amount)
@@ -67,49 +60,128 @@
                 throw new ArgumentException("From must be less than to.");
             }
 
-            // Process the 'to' point insertions first
+            // Add the 'to' point if it doesn't exist
             if (!points.ContainsKey(to))
             {
-                points.Add(to, 0);
-                var toIndex = points.IndexOfKey(to);
-                if (toIndex > 0)
+                int valueAtToBefore = GetIntensityAtPosition(to);
+                points[to] = valueAtToBefore;
+            }
+
+            // Set the 'from' point to the new amount
+            points[from] = amount;
+
+            // Use binary search to find range of points to remove efficiently
+            var keys = points.Keys.ToArray();
+            int fromIndex = BinarySearch(keys, from);
+            int toIndex = BinarySearch(keys, to);
+
+            // Remove all points in the range (from, to)
+            // Becareful to remove from the end to avoid index shifting
+            for (int i = toIndex - 1; i > fromIndex; i--)
+            {
+                points.Remove(keys[i]);
+            }
+
+            MergeSegmentsInRange(from, to);
+        }
+
+        // A standard binary search
+        private int BinarySearch(int[] sortedArray, int target)
+        {
+            int left = 0;
+            int right = sortedArray.Length - 1;
+
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                if (sortedArray[mid] == target)
                 {
-                    points[to] = points.Values[toIndex - 1];
+                   return mid;
+                }
+                else if (sortedArray[mid] < target)
+                {
+                    left = mid + 1;
+                }
+                else
+                {
+                    right = mid - 1;
                 }
             }
 
-            // Process the 'from' point insertions
-            if (points.ContainsKey(from))
+            return -1;
+        }
+
+        // A revised binary search to find the rightmost index where keys[index] <= target
+        // If all elements are > target, returns -1
+        private int BinarySearchLTE(int[] sortedArray, int target)
+        {
+            int left = 0;
+            int right = sortedArray.Length - 1;
+            int resultIndex = -1;
+
+            while (left <= right)
             {
-                points[from] = amount;
-            }
-            else
-            {
-                points.Add(from, amount);
+                int mid = left + (right - left) / 2;
+                if (sortedArray[mid] <= target)
+                {
+                    resultIndex = mid;
+                    left = mid + 1;
+                }
+                else
+                {
+                    right = mid - 1;
+                }
             }
 
-            // Find all points between from and to and remove them
-            // because they are now overridden with a same intensity
-            var fromIndex2 = points.IndexOfKey(from);
-            var toIndex2 = points.IndexOfKey(to);
+            return resultIndex;
+        }
 
-            // Becareful to remove from the end to avoid index shifting
-            for (int i = toIndex2 - 1; i > fromIndex2; i--)
+        // Gets the intensity value at a specific position (the value of the segment that contains this position)
+        // The po
+        // Using binary search for O(log n) instead of O(n)
+        private int GetIntensityAtPosition(int position)
+        {
+            if (points.Count == 0)
             {
-                points.RemoveAt(i);
+                return 0;
             }
 
-            MergeSegments();
+            if (points.ContainsKey(position))
+            {
+                return points[position];
+            }
+
+            var keys = points.Keys.ToArray();
+            int resultIndex = BinarySearchLTE(keys, position);
+
+            if (resultIndex != -1)
+            {
+                return points[keys[resultIndex]];
+            }
+
+            return 0; // Default value if no key <= position
         }
 
         // Merges consecutive segments with the same intensity
-        private void MergeSegments()
+        // Optimized to only check adjacent segments in the affected range
+        private void MergeSegmentsInRange(int from, int to)
         {
-            for (int i = points.Count - 1; i > 0; i--)
+            if (points.Count <= 1) return;
+
+            var keys = points.Keys.ToArray();
+            int fromIndex = BinarySearch(keys, from);
+            int toIndex = BinarySearch(keys, to);
+
+            // Adjust indices to ensure we check adjacent segments
+            if (fromIndex > 0) fromIndex--;  // Check one point before the range
+            if (toIndex < keys.Length - 1) toIndex++;  // Check one point after the range
+
+            // Only check the relevant section for merging, from end to beginning to avoid index shifting
+            for (int i = toIndex; i > fromIndex; i--)
             {
-                if (points.Values[i] == points.Values[i - 1])
+                if (points[keys[i]] == points[keys[i - 1]])
                 {
-                    points.RemoveAt(i);
+                    points.Remove(keys[i]);
                 }
             }
         }
