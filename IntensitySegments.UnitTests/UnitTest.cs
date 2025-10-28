@@ -17,6 +17,9 @@ namespace IntensitySegments.UnitTests
             segments.Add(20, 40, 1);
             Assert.That(segments.ToString(), Is.EqualTo("[[10,1],[20,2],[30,1],[40,0]]"));
 
+            segments.Add(20, 25, 0);
+            Assert.That(segments.ToString(), Is.EqualTo("[[10,1],[20,2],[30,1],[40,0]]"));
+
             segments.Add(10, 40, -2);
             Assert.That(segments.ToString(), Is.EqualTo("[[10,-1],[20,0],[30,-1],[40,0]]"));
 
@@ -40,6 +43,12 @@ namespace IntensitySegments.UnitTests
 
             segments.Set(-20, 50, 2);
             Assert.That(segments.ToString(), Is.EqualTo("[[-20,2],[50,0]]"));
+
+            segments.Add(int.MinValue, -10, 3);
+            Assert.That(segments.ToString(), Is.EqualTo("[[-2147483648,3],[-20,5],[-10,2],[50,0]]"));
+
+            segments.Add(20, int.MaxValue, 1);
+            Assert.That(segments.ToString(), Is.EqualTo("[[-2147483648,3],[-20,5],[-10,2],[20,3],[50,1],[2147483647,0]]"));
         }
 
         [Test]
