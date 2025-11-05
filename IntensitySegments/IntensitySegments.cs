@@ -1,4 +1,6 @@
-﻿namespace IntensitySegments
+﻿using System.Text.Json;
+
+namespace IntensitySegments
 {
     /// <summary>
     /// Represents a collection of intensity segments, where each segment is defined by a range of values and an
@@ -188,14 +190,17 @@
 
         public override string ToString()
         {
-            if (points.Count == 0)
-            {
-                return "[]";
-            }
-            else
-            {
-                return "[" + string.Join(",", points.Select(kv => $"[{kv.Key},{kv.Value}]")) + "]";
-            }
+            // Convert object to a JSON string
+            return JsonSerializer.Serialize(points.Select(kvp => new int[] { kvp.Key, kvp.Value }).ToArray());
+
+            //if (points.Count == 0)
+            //{
+            //    return "[]";
+            //}
+            //else
+            //{
+            //    return "[" + string.Join(",", points.Select(kv => $"[{kv.Key},{kv.Value}]")) + "]";
+            //}
         }
     }
 }
